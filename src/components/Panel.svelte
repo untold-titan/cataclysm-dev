@@ -73,7 +73,7 @@
       </div>
     {:else if dest.kind === 'contact'}
       <div class="contact">
-        <a class="email" href="mailto:{profile.email}">{profile.email}</a>
+        {#if profile.email}<a class="email" href="mailto:{profile.email}">{profile.email}</a>{/if}
         <ul class="contact-links">
           {#each profile.links as l (l.label)}
             <li><a href={l.url} target="_blank" rel="noreferrer">{l.label} ↗</a></li>

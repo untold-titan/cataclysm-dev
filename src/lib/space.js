@@ -43,7 +43,8 @@ const smoothstep = (a, b, x) => {
   const t = clamp((x - a) / (b - a), 0, 1);
   return t * t * (3 - 2 * t);
 };
-const easeInOut = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+// Sine easing: gentle take-off/landing and a low peak speed (~1.6x average).
+const easeInOut = (t) => -(Math.cos(Math.PI * t) - 1) / 2;
 
 function randomDir(rng, out = new THREE.Vector3()) {
   const z = rng() * 2 - 1;
@@ -348,6 +349,7 @@ export class SpaceScene {
     this.orbit = { dest: start, theta: 0, since: 10 };
     this.shipSpeed = 0;
     this.bank = 0;
+    this.chaseFwd = new THREE.Vector3();
     this.prevFwd = this.orbitTangent(start, 0, new THREE.Vector3());
     this.ship.position.copy(this.orbitPoint(start, 0, new THREE.Vector3()));
     this.ship.quaternion.copy(this.headingQuat(this.prevFwd, 0));
@@ -814,7 +816,7 @@ export class SpaceScene {
     const curve = new THREE.CubicBezierCurve3(p0, p1, p2, p3);
     curve.arcLengthDivisions = 300;
     const length = curve.getLength();
-    const duration = this.reducedMotion ? 1.4 : clamp(length / 20, 2.6, 5.5);
+    const duration = this.reducedMotion ? 1.4 : clamp(length / 11, 4, 8);
 
     this.travel = { dest: target, curve, length, duration, elapsed: 0, e: 0, theta0 };
     this.orbit = null;
@@ -843,7 +845,7 @@ export class SpaceScene {
     } else {
       const o = this.orbit;
       o.since += dt;
-      const maxOmega = 4 / o.dest.orbitRadius;
+      const maxOmega = 3 / o.dest.orbitRadius;
       const omega = maxOmega * smoothstep(0, 3, o.since);
       o.theta += omega * dt;
       this.shipSpeed = omega * o.dest.orbitRadius;
@@ -865,7 +867,7 @@ export class SpaceScene {
     this.ship.quaternion.slerp(this.headingQuat(fwd, this.bank), damp(8, dt));
 
     // Engine glow follows throttle.
-    const throttle = clamp(this.shipSpeed / 30, 0, 1);
+    const throttle = clamp(this.shipSpeed / 18, 0, 1);
     for (const f of this.flames) {
       f.scale.set(1, 1, 0.6 + throttle * 2.2 + Math.random() * 0.2);
       f.material.opacity = 0.25 + throttle * 0.3;
@@ -908,7 +910,7 @@ export class SpaceScene {
         vel[i * 3 + 1] = -fwd.y * sp + (rng() - 0.5) * 0.5;
         vel[i * 3 + 2] = -fwd.z * sp + (rng() - 0.5) * 0.5;
         life[i] = 1 - (1 - t) * dt;
-        ex.size[i] = (0.28 + rng() * 0.22) * scale * (1 + clamp(this.shipSpeed / 30, 0, 1) * 0.6);
+        ex.size[i] = (0.28 + rng() * 0.22) * scale * (1 + clamp(this.shipSpeed / 18, 0, 1) * 0.6);
       }
       prev.copy(now);
     });
@@ -954,13 +956,16 @@ export class SpaceScene {
 
     if (this.travel) {
       const tr = this.travel;
-      const chasePos = ship.clone().addScaledVector(fwd, -9).addScaledVector(UP, 3.2);
-      const chaseTarget = ship.clone().addScaledVector(fwd, 10);
+      // Follow a smoothed heading so curves in the path don't whip the camera around.
+      this.chaseFwd.lerp(fwd, damp(1.8, dt)).normalize();
+      const chasePos = ship.clone().addScaledVector(this.chaseFwd, -10).addScaledVector(UP, 3.5);
+      const chaseTarget = ship.clone().addScaledVector(this.chaseFwd, 8);
       const end = this.framing(tr.dest);
       const w = smoothstep(0.6, 0.97, tr.p ?? 0);
       desiredPos = chasePos.lerp(end.pos, w);
       desiredTarget = chaseTarget.lerp(end.target, w);
     } else {
+      this.chaseFwd.copy(fwd);
       const f = this.framing(this.orbit.dest);
       desiredPos = f.pos;
       desiredTarget = f.target;
@@ -973,7 +978,7 @@ export class SpaceScene {
     const parallaxScale = this.reducedMotion ? 0 : 2.2;
     desiredPos.addScaledVector(right, this.parallax.x * parallaxScale).addScaledVector(UP, this.parallax.y * parallaxScale * 0.6);
 
-    const k = this.travel ? 5 : 2.2;
+    const k = this.travel ? 3 : 2;
     this.camPos.lerp(desiredPos, damp(k, dt));
     this.camTarget.lerp(desiredTarget, damp(k + 1, dt));
 
@@ -987,7 +992,7 @@ export class SpaceScene {
     this.camera.position.copy(this.camPos);
     this.camera.lookAt(this.camTarget);
 
-    const fov = 50 + (this.reducedMotion ? 0 : clamp(this.shipSpeed / 35, 0, 1) * 14);
+    const fov = 50 + (this.reducedMotion ? 0 : clamp(this.shipSpeed / 20, 0, 1) * 10);
     if (Math.abs(this.camera.fov - fov) > 0.01) {
       this.camera.fov += (fov - this.camera.fov) * damp(4, dt);
       this.camera.updateProjectionMatrix();
@@ -1048,7 +1053,7 @@ export class SpaceScene {
     this.sky.position.copy(this.camera.position);
     this.nebula.material.uniforms.uTime.value = this.time;
     this.stars.material.uniforms.uTime.value = this.time;
-    this.nozzleMat.color.setRGB(1.0, 1.7, 2.8).multiplyScalar(0.8 + clamp(this.shipSpeed / 30, 0, 1) * 0.6);
+    this.nozzleMat.color.setRGB(1.0, 1.7, 2.8).multiplyScalar(0.8 + clamp(this.shipSpeed / 18, 0, 1) * 0.6);
 
     this.composer.render(dt);
   }
