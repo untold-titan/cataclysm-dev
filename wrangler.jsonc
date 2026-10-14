@@ -1,0 +1,12 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "cataclysm-dev",
+  "compatibility_date": "2026-10-01",
+  // Static site: Vite builds into ./dist and Cloudflare serves it directly (no Worker script).
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "single-page-application"
+  }
+  // To serve on your own domain once it's on Cloudflare, uncomment:
+  // "routes": [{ "pattern": "cataclysm.dev", "custom_domain": true }]
+}
