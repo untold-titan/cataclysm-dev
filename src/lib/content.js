@@ -10,12 +10,10 @@ export const profile = {
     'Lead Developer at Telos One. I build apps, tools and games — from Flutter and .NET to the web, and the odd spaceship.',
   location: 'Canada',
   // Optional: add a public email address to show it on the Comms Relay.
-  email: '',
+  email: 'hello@cataclysm.dev',
   links: [
     { label: 'GitHub', url: GH },
     { label: 'LinkedIn', url: 'https://www.linkedin.com/in/mitchell-dev/' },
-    { label: 'Blog', url: 'https://untoldtitan.org' },
-    { label: 'GitLab', url: 'https://gitlab.untoldtitan.org/untold-titan' },
   ],
 };
 
@@ -196,7 +194,7 @@ export const destinations = [
     short: 'Contact',
     key: '4',
     color: '#ff4f8b',
-    blurb: 'Open a channel. Find me on GitHub, read the blog, or see what I am building on my self-hosted GitLab.',
+    blurb: 'Open a channel. Send me an email, or find me on GitHub and LinkedIn.',
     scene: { position: [-9, -4, 21], radius: 2.6, seed: 51, tilt: -0.3 },
   },
 ];
